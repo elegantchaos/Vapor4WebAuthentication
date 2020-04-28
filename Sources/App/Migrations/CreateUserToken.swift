@@ -1,27 +1,25 @@
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-//  Created by Sam Deane on 27/04/2020.
+//  Created by Sam Deane on 28/04/2020.
 //  All code (c) 2020 - present day, Elegant Chaos Limited.
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 import Fluent
-import Vapor
 
-extension User {
+extension UserToken {
     struct Migration: Fluent.Migration {
-        var name: String { "CreateUser" }
+        var name: String { "CreateUserToken" }
 
         func prepare(on database: Database) -> EventLoopFuture<Void> {
-            database.schema(User.schema)
+            database.schema("user_tokens")
                 .id()
-                .field("name", .string, .required)
-                .field("email", .string, .required)
-                .field("password_hash", .string, .required)
-                .unique(on: "email")
+                .field("value", .string, .required)
+                .field("user_id", .uuid, .required, .references("users", "id"))
+                .unique(on: "value")
                 .create()
         }
 
         func revert(on database: Database) -> EventLoopFuture<Void> {
-            database.schema(User.schema).delete()
+            database.schema("user_tokens").delete()
         }
     }
 }

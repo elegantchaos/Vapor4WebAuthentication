@@ -29,3 +29,39 @@ final class User: Model, Content {
         self.passwordHash = passwordHash
     }
 }
+
+extension User {
+    func generateToken() throws -> UserToken {
+        try .init(
+            value: [UInt8].random(count: 16).base64,
+            userID: self.requireID()
+        )
+    }
+}
+
+extension User: ModelAuthenticatable {
+    static let usernameKey = \User.$email
+    static let passwordHashKey = \User.$passwordHash
+
+    func verify(password: String) throws -> Bool {
+        try Bcrypt.verify(password, created: self.passwordHash)
+    }
+}
+
+extension UserToken: SessionAuthenticatable {
+    var sessionID: UUID {
+        return id!
+    }
+}
+
+struct UserSessionAuthenticator: SessionAuthenticator {
+    typealias User = App.UserToken
+    func authenticate(sessionID: UUID, for request: Request) -> EventLoopFuture<Void> {
+        UserToken.find(sessionID, on: request.db)
+        .map { token in
+            if let user = token?.user {
+                request.auth.login(user)
+            }
+        }
+    }
+}

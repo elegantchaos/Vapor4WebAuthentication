@@ -8,7 +8,11 @@ struct UserController: RouteCollection {
         routes.get("profile", use: renderProfile)
         
         routes.post("register", use: performRegister)
-        routes.post("login", use: performLogin)
+        
+        let passwordProtected = routes.grouped(User.authenticator())
+        passwordProtected.post("login") { req -> User in
+            try req.auth.require(User.self)
+        }
     }
     
     func renderRegister(req: Request) throws -> EventLoopFuture<View> {
