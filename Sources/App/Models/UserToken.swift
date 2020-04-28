@@ -26,3 +26,6 @@ final class UserToken: Model, Content {
         self.$user.id = userID
     }
 }
+
+extension UserToken: ModelSessionAuthenticatable {
+}

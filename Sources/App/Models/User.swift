@@ -48,11 +48,6 @@ extension User: ModelAuthenticatable {
     }
 }
 
-extension UserToken: SessionAuthenticatable {
-    var sessionID: UUID {
-        return id!
-    }
-}
 
 struct UserSessionAuthenticator: SessionAuthenticator {
     typealias User = App.UserToken
