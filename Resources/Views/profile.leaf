@@ -1,0 +1,6 @@
+#extend("index"):
+    #export("body"):
+        <h1>#(index.title)</h1>
+        <p>#(page.content)</p>
+    #endexport
+#endextend

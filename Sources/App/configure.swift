@@ -1,6 +1,7 @@
 import Fluent
 import FluentSQLiteDriver
 import Vapor
+import Leaf
 
 // configures your application
 public func configure(_ app: Application) throws {
@@ -9,7 +10,11 @@ public func configure(_ app: Application) throws {
 
     app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
 
-    app.migrations.add(CreateTodo())
+    app.migrations.add(User.Migration())
+
+    // Configure Leaf
+    app.views.use(.leaf)
+    app.leaf.cache.isEnabled = app.environment.isRelease
 
     // register routes
     try routes(app)

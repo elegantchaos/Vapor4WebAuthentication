@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>#(index.title)</title>
+    <meta name="description" content="#(index.description)">
+  </head>
+  <body>
+    <main>
+        #import("body")
+    </main>
+  </body>
+</html>
