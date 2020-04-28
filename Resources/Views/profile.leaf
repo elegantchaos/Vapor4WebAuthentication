@@ -1,0 +1,31 @@
+#extend("base"):
+    #export("body"):
+        <div class="row justify-content-center">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-body">
+                <h3 class="card-title">#(meta.title)</h3>
+                <h4>Tokens</h4>
+                #for(token in tokens):
+                   <li>#(token.id)</li>
+                #endfor
+
+                <br />
+
+                <h4>Sessions</h4>
+                #for(session in sessions):
+                   <li>#(session.id)</li>
+                #endfor
+
+                <br />
+
+                <h4>Actions</h4>
+                <div><a href="/login">Login</a></div>
+                <div><a href="/logout">Logout</a></div>
+                </div>
+            </div>
+          </div>
+        </div>
+    #endexport
+#endextend
+

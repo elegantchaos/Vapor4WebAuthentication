@@ -11,17 +11,17 @@ struct UserController: RouteCollection {
             SessionsMiddleware(session: app.sessions.driver)
         )
         sessionEnabled.post("login", use: performLogin)
-
+        
         routes.get("register", use: renderRegister)
         routes.post("register", use: performRegister)
         
         let sessionProtected = routes.grouped(
             SessionsMiddleware(session: app.sessions.driver),
             UserToken.sessionAuthenticator()
-//            UserToken.guardMiddleware()
+            //            UserToken.guardMiddleware()
         )
         sessionProtected.get("profile", use: renderProfile)
-
+        
     }
     
     func renderRegister(req: Request) throws -> EventLoopFuture<View> {
@@ -30,19 +30,15 @@ struct UserController: RouteCollection {
     
     func renderProfile(_ req: Request) throws -> EventLoopFuture<View> {
         print("perform profile")
-
+        
         let token = req.auth.get(UserToken.self)
         if let token = token {
             return token.$user.get(on: req.db)
                 .flatMap { user -> EventLoopFuture<View> in
-                    self.tokenContent(req: req).flatMap { contentString -> EventLoopFuture<View> in
-                        return self.renderProfile(req, name: user.name, content: contentString)
-                    }
+                    return self.renderProfilePage(req, for: user)
             }
         } else {
-            return self.tokenContent(req: req).flatMap { contentString -> EventLoopFuture<View> in
-                return self.renderProfile(req, name: nil, content: contentString)
-            }
+            return self.renderProfilePage(req)
         }
     }
     
@@ -55,33 +51,33 @@ struct UserController: RouteCollection {
         }
     }
     
-    func renderProfile(_ req: Request, name: String?, content: String) -> EventLoopFuture<View> {
+    func renderProfilePage(_ req: Request, for user: User? = nil) -> EventLoopFuture<View> {
         struct Meta: Codable {
             var title: String
             var description: String
         }
-
-        struct PageBody: Codable {
-            var content: String
-        }
-
+        
         struct Page: Codable {
-             var meta: Meta
-             var body: PageBody
-         }
-
+            var meta: Meta
+            var tokens: [UserToken]
+            var sessions: [SessionRecord]
+        }
+        
         let title: String
         let description: String
-        if let name = name {
-           title = "Logged in as \(name)."
-            description = "Profile page for \(name)."
+        if let user = user {
+            title = "Logged in as \(user.name)."
+            description = "Profile page for \(user.name)."
         } else {
             title = "Not Logged In"
             description = "Not Logged In"
         }
-
-        let context = Page(meta: .init(title: title, description: description), body: .init(content: content))
-        return req.view.render("page", context)
+        
+        return UserToken.query(on: req.db).all().and(SessionRecord.query(on: req.db).all())
+            .flatMap { (tokens, sessions) in
+                let context = Page(meta: .init(title: title, description: description), tokens: tokens, sessions: sessions)
+                return req.view.render("profile", context)
+        }
     }
     
     func renderLogin(_ req: Request) throws -> EventLoopFuture<View> {
@@ -90,7 +86,7 @@ struct UserController: RouteCollection {
     
     func performLogin(_ req: Request) throws -> EventLoopFuture<Response> {
         print("perform login")
-
+        
         try LoginRequest.validate(req)
         let loginRequest = try req.content.decode(LoginRequest.self)
         
@@ -104,19 +100,19 @@ struct UserController: RouteCollection {
                     .verify(loginRequest.password, created: user.passwordHash)
                     .guard({ $0 == true }, else: AuthenticationError.invalidEmailOrPassword)
                     .transform(to: user)
+        }
+        .flatMap { user -> EventLoopFuture<UserToken> in
+            do {
+                let token = try user.generateToken()
+                return token.create(on: req.db).transform(to: token)
+            } catch {
+                return req.eventLoop.makeFailedFuture(error)
             }
-            .flatMap { user -> EventLoopFuture<UserToken> in
-                do {
-                    let token = try user.generateToken()
-                    return token.create(on: req.db).transform(to: token)
-                } catch {
-                    return req.eventLoop.makeFailedFuture(error)
-                }
-            }
-            .map { token -> Response in
-                req.session.authenticate(token)
-                return req.redirect(to: "/profile")
-            }
+        }
+        .map { token -> Response in
+            req.session.authenticate(token)
+            return req.redirect(to: "/profile")
+        }
     }
     
     func performRegister(_ req: Request) throws -> EventLoopFuture<Response> {
