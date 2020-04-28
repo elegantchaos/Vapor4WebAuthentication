@@ -7,8 +7,8 @@ struct UserController: RouteCollection {
         routes.get("register", use: renderRegister)
         routes.get("profile", use: renderProfile)
         
-        routes.post("register", use: register)
-        routes.post("login", use: login)
+        routes.post("register", use: performRegister)
+        routes.post("login", use: performLogin)
     }
     
     func renderRegister(req: Request) throws -> EventLoopFuture<View> {
@@ -23,11 +23,22 @@ struct UserController: RouteCollection {
         return req.view.render("login")
     }
     
-    func login(_ req: Request) throws -> EventLoopFuture<Response> {
+    func performLogin(_ req: Request) throws -> EventLoopFuture<Response> {
+        print("perform login")
         return req.eventLoop.makeSucceededFuture(Response(status: .notFound))
     }
     
-    func register(_ req: Request) throws -> EventLoopFuture<Response> {
-        return req.eventLoop.makeSucceededFuture(Response(status: .notFound))
+    func performRegister(_ req: Request) throws -> EventLoopFuture<Response> {
+        print("perform register")
+        
+        try RegisterRequest.validate(req)
+        let registerRequest = try req.content.decode(RegisterRequest.self)
+        
+        return req.password
+            .async
+            .hash(registerRequest.password)
+            .flatMapThrowing { try User(from: registerRequest, hash: $0) }
+            .flatMap { user in user.save(on: req.db) }
+            .map { req.redirect(to: "/login") }
     }
 }
