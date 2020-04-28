@@ -47,16 +47,3 @@ extension User: ModelAuthenticatable {
         try Bcrypt.verify(password, created: self.passwordHash)
     }
 }
-
-
-struct UserSessionAuthenticator: SessionAuthenticator {
-    typealias User = App.UserToken
-    func authenticate(sessionID: UUID, for request: Request) -> EventLoopFuture<Void> {
-        UserToken.find(sessionID, on: request.db)
-        .map { token in
-            if let user = token?.user {
-                request.auth.login(user)
-            }
-        }
-    }
-}

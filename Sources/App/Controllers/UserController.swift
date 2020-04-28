@@ -8,17 +8,17 @@ struct UserController: RouteCollection {
         routes.get("login", use: renderLogin)
         
         let sessionEnabled = routes.grouped(
-            app.sessions.middleware)
+            SessionsMiddleware(session: app.sessions.driver)
+        )
         sessionEnabled.post("login", use: performLogin)
 
         routes.get("register", use: renderRegister)
         routes.post("register", use: performRegister)
         
         let sessionProtected = routes.grouped(
-            app.sessions.middleware,
-            UserToken.sessionAuthenticator(),
-//            UserSessionAuthenticator(),
-            UserToken.guardMiddleware()
+            SessionsMiddleware(session: app.sessions.driver),
+            UserToken.sessionAuthenticator()
+//            UserToken.guardMiddleware()
         )
         sessionProtected.get("profile", use: renderProfile)
 
@@ -29,28 +29,59 @@ struct UserController: RouteCollection {
     }
     
     func renderProfile(_ req: Request) throws -> EventLoopFuture<View> {
+        print("perform profile")
 
-        struct Index: Codable {
+        let token = req.auth.get(UserToken.self)
+        if let token = token {
+            return token.$user.get(on: req.db)
+                .flatMap { user -> EventLoopFuture<View> in
+                    self.tokenContent(req: req).flatMap { contentString -> EventLoopFuture<View> in
+                        return self.renderProfile(req, name: user.name, content: contentString)
+                    }
+            }
+        } else {
+            return self.tokenContent(req: req).flatMap { contentString -> EventLoopFuture<View> in
+                return self.renderProfile(req, name: nil, content: contentString)
+            }
+        }
+    }
+    
+    func tokenContent(req: Request) -> EventLoopFuture<String> {
+        UserToken.query(on: req.db).all().and(SessionRecord.query(on: req.db).all())
+            .map { (tokens, sessions) in
+                let tokenString = tokens.map({  token in "<div>\(token.id!): \(token.value)</div>" }).joined(separator: "\n" )
+                let sessionString = sessions.map({  session in "<div>\(session.id!): \(session.data)</div>" }).joined(separator: "\n" )
+                return "<h2>Tokens</h2>\n\(tokenString)\n\n<h2>Sessions</h2>\n\(sessionString)"
+        }
+    }
+    
+    func renderProfile(_ req: Request, name: String?, content: String) -> EventLoopFuture<View> {
+        struct Meta: Codable {
             var title: String
             var description: String
         }
 
-        struct Page: Codable {
+        struct PageBody: Codable {
             var content: String
         }
 
-        struct Context: Codable {
-             var index: Index
-             var page: Page
+        struct Page: Codable {
+             var meta: Meta
+             var body: PageBody
          }
 
-        print("perform profile")
+        let title: String
+        let description: String
+        if let name = name {
+           title = "Logged in as \(name)."
+            description = "Profile page for \(name)."
+        } else {
+            title = "Not Logged In"
+            description = "Not Logged In"
+        }
 
-        let token = try req.auth.require(UserToken.self)
-        let context = Context(index: .init(title: "My page", description: "This is my Page"),
-                              page: .init(content: "Welcome to my page \(token.$user)!"))
-        
-        return req.view.render("profile", context)
+        let context = Page(meta: .init(title: title, description: description), body: .init(content: content))
+        return req.view.render("page", context)
     }
     
     func renderLogin(_ req: Request) throws -> EventLoopFuture<View> {

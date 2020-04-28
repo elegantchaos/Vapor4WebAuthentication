@@ -5,13 +5,15 @@ import Leaf
 
 // configures your application
 public func configure(_ app: Application) throws {
-    // serve files from /Public folder
-     app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
 
     app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
-
+    app.sessions.use(.fluent(.sqlite))
+    
     app.migrations.add(User.Migration())
     app.migrations.add(UserToken.Migration())
+    app.migrations.add(SessionRecord.migration)
+    
+    app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))     // serve files from /Public folder
 
     // Configure Leaf
     app.views.use(.leaf)

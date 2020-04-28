@@ -1,0 +1,6 @@
+#extend("base"):
+    #export("body"):
+        <h1>#(meta.title)</h1>
+        <p>#(body.content)</p>
+    #endexport
+#endextend
