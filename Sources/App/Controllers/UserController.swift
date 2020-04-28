@@ -17,6 +17,7 @@ struct UserController: RouteCollection {
         let sessionProtected = routes.grouped(
             app.sessions.middleware,
             UserToken.sessionAuthenticator(),
+//            UserSessionAuthenticator(),
             UserToken.guardMiddleware()
         )
         sessionProtected.get("profile", use: renderProfile)
@@ -28,7 +29,28 @@ struct UserController: RouteCollection {
     }
     
     func renderProfile(_ req: Request) throws -> EventLoopFuture<View> {
-        return req.view.render("profile")
+
+        struct Index: Codable {
+            var title: String
+            var description: String
+        }
+
+        struct Page: Codable {
+            var content: String
+        }
+
+        struct Context: Codable {
+             var index: Index
+             var page: Page
+         }
+
+        print("perform profile")
+
+        let token = try req.auth.require(UserToken.self)
+        let context = Context(index: .init(title: "My page", description: "This is my Page"),
+                              page: .init(content: "Welcome to my page \(token.$user)!"))
+        
+        return req.view.render("profile", context)
     }
     
     func renderLogin(_ req: Request) throws -> EventLoopFuture<View> {
