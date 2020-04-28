@@ -5,22 +5,25 @@ struct UserController: RouteCollection {
     let app: Application
     
     func boot(routes: RoutesBuilder) throws {
-        routes.get("login", use: renderLogin)
         
         let sessionEnabled = routes.grouped(
             SessionsMiddleware(session: app.sessions.driver)
         )
-        sessionEnabled.post("login", use: performLogin)
-        
-        routes.get("register", use: renderRegister)
-        routes.post("register", use: performRegister)
-        
+
         let sessionProtected = routes.grouped(
             SessionsMiddleware(session: app.sessions.driver),
             UserToken.sessionAuthenticator()
             //            UserToken.guardMiddleware()
         )
+
+        routes.get("login", use: renderLogin)
+        sessionEnabled.post("login", use: handleLogin)
+        
+        routes.get("register", use: renderRegister)
+        routes.post("register", use: handleRegister)
+        
         sessionProtected.get("profile", use: renderProfile)
+        sessionProtected.get("logout", use: performLogout)
         
     }
     
@@ -84,7 +87,7 @@ struct UserController: RouteCollection {
         return req.view.render("login")
     }
     
-    func performLogin(_ req: Request) throws -> EventLoopFuture<Response> {
+    func handleLogin(_ req: Request) throws -> EventLoopFuture<Response> {
         print("perform login")
         
         try LoginRequest.validate(req)
@@ -115,7 +118,7 @@ struct UserController: RouteCollection {
         }
     }
     
-    func performRegister(_ req: Request) throws -> EventLoopFuture<Response> {
+    func handleRegister(_ req: Request) throws -> EventLoopFuture<Response> {
         print("perform register")
         
         try RegisterRequest.validate(req)
@@ -127,5 +130,11 @@ struct UserController: RouteCollection {
             .flatMapThrowing { try User(from: registerRequest, hash: $0) }
             .flatMap { user in user.save(on: req.db) }
             .map { req.redirect(to: "/login") }
+    }
+    
+    func performLogout(_ req: Request) throws -> Response {
+        req.auth.logout(User.self)
+        req.session.destroy()
+        return req.redirect(to: "/login")
     }
 }
