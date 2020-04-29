@@ -108,6 +108,16 @@ struct UserController: RouteCollection {
                     .guard({ $0 == true }, else: AuthenticationError.invalidEmailOrPassword)
                     .transform(to: user)
         }
+        .flatMap { user -> EventLoopFuture<User> in
+            do {
+                return try UserToken.query(on: req.db)
+                    .filter(\.$user.$id == user.requireID())
+                    .delete()
+                    .transform(to: user)
+            } catch {
+                return req.eventLoop.makeFailedFuture(error)
+            }
+        }
         .flatMap { user -> EventLoopFuture<UserToken> in
             do {
                 let token = try user.generateToken()
