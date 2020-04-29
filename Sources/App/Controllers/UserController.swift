@@ -22,7 +22,7 @@ struct UserController: RouteCollection {
         routes.get("register", use: renderRegister)
         routes.post("register", use: handleRegister)
         
-        sessionProtected.get("profile", use: renderProfile)
+        sessionProtected.get("", use: renderProfile)
         sessionProtected.get("logout", use: performLogout)
         
     }
@@ -62,6 +62,7 @@ struct UserController: RouteCollection {
         
         struct Page: Codable {
             var meta: Meta
+            var users: [User]
             var tokens: [UserToken]
             var sessions: [SessionRecord]
         }
@@ -76,9 +77,12 @@ struct UserController: RouteCollection {
             description = "Not Logged In"
         }
         
-        return UserToken.query(on: req.db).all().and(SessionRecord.query(on: req.db).all())
-            .flatMap { (tokens, sessions) in
-                let context = Page(meta: .init(title: title, description: description), tokens: tokens, sessions: sessions)
+        return UserToken.query(on: req.db).all()
+            .and(SessionRecord.query(on: req.db).all())
+            .and(User.query(on: req.db).all())
+            .flatMap { (tokensAndSessions, users) in
+                let (tokens, sessions) = tokensAndSessions
+                let context = Page(meta: .init(title: title, description: description), users: users, tokens: tokens, sessions: sessions)
                 return req.view.render("profile", context)
         }
     }
@@ -114,7 +118,7 @@ struct UserController: RouteCollection {
         }
         .map { token -> Response in
             req.session.authenticate(token)
-            return req.redirect(to: "/profile")
+            return req.redirect(to: "/")
         }
     }
     
@@ -123,11 +127,20 @@ struct UserController: RouteCollection {
         
         try RegisterRequest.validate(req)
         let registerRequest = try req.content.decode(RegisterRequest.self)
-        
+        guard registerRequest.password == registerRequest.confirm else {
+            throw AuthenticationError.passwordsDontMatch
+        }
+
         return req.password
             .async
             .hash(registerRequest.password)
             .flatMapThrowing { try User(from: registerRequest, hash: $0) }
+                .flatMapErrorThrowing {
+                    if let dbError = $0 as? DatabaseError, dbError.isConstraintFailure {
+                        throw AuthenticationError.emailAlreadyExists
+                    }
+                    throw $0
+            }
             .flatMap { user in user.save(on: req.db) }
             .map { req.redirect(to: "/login") }
     }

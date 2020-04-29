@@ -12,6 +12,13 @@
 
                 <br />
 
+                <h4>Users</h4>
+                #for(user in users):
+                   <li>#(user.name) #(user.email)</li>
+                #endfor
+
+                <br />
+
                 <h4>Sessions</h4>
                 #for(session in sessions):
                    <li>#(session.id)</li>
@@ -20,6 +27,7 @@
                 <br />
 
                 <h4>Actions</h4>
+                <div><a href="/register">Register</a></div>
                 <div><a href="/login">Login</a></div>
                 <div><a href="/logout">Logout</a></div>
                 </div>
