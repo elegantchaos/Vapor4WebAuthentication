@@ -91,45 +91,47 @@ struct UserController: RouteCollection {
         return req.view.render("login")
     }
     
-    func handleLogin(_ req: Request) throws -> EventLoopFuture<Response> {
-        print("perform login")
-        
+    fileprivate func removeTokens(user: User, req: Request) -> EventLoopFuture<User> {
+        do {
+            return try UserToken.query(on: req.db)
+                .filter(\.$user.$id == user.requireID())
+                .delete()
+                .transform(to: user)
+        } catch {
+            return req.eventLoop.makeFailedFuture(error)
+        }
+    }
+    
+    fileprivate func generateToken(user: User, req: Request) -> EventLoopFuture<Void> {
+        do {
+            let token = try user.generateToken()
+            return token.create(on: req.db)
+                .map { req.session.authenticate(token) }
+        } catch {
+            return req.eventLoop.makeFailedFuture(error)
+        }
+    }
+    
+    fileprivate func verifyUser(_ req: Request) throws -> EventLoopFuture<User> {
         try LoginRequest.validate(req)
         let loginRequest = try req.content.decode(LoginRequest.self)
+        let query = User.query(on: req.db).filter(\.$email == loginRequest.email).first()
         
-        return User.query(on: req.db)
-            .filter(\.$email == loginRequest.email)
-            .first()
-            .unwrap(or: AuthenticationError.invalidEmailOrPassword)
-            .flatMap { user -> EventLoopFuture<User> in
-                return req.password
-                    .async
-                    .verify(loginRequest.password, created: user.passwordHash)
+        return query
+            -!-> { AuthenticationError.invalidEmailOrPassword }
+            --> { user -> EventLoopFuture<User> in
+                let verifier = req.password.async.verify(loginRequest.password, created: user.passwordHash)
+                return verifier
                     .guard({ $0 == true }, else: AuthenticationError.invalidEmailOrPassword)
                     .transform(to: user)
         }
-        .flatMap { user -> EventLoopFuture<User> in
-            do {
-                return try UserToken.query(on: req.db)
-                    .filter(\.$user.$id == user.requireID())
-                    .delete()
-                    .transform(to: user)
-            } catch {
-                return req.eventLoop.makeFailedFuture(error)
-            }
-        }
-        .flatMap { user -> EventLoopFuture<UserToken> in
-            do {
-                let token = try user.generateToken()
-                return token.create(on: req.db).transform(to: token)
-            } catch {
-                return req.eventLoop.makeFailedFuture(error)
-            }
-        }
-        .map { token -> Response in
-            req.session.authenticate(token)
-            return req.redirect(to: "/")
-        }
+    }
+    
+    func handleLogin(_ req: Request) throws -> EventLoopFuture<Response> {
+        return try verifyUser(req)
+            --> { self.removeTokens(user: $0, req: req) }
+            --> { self.generateToken(user: $0, req: req) }
+            ==> { return req.redirect(to: "/") }
     }
     
     func handleRegister(_ req: Request) throws -> EventLoopFuture<Response> {
@@ -159,5 +161,25 @@ struct UserController: RouteCollection {
         req.auth.logout(User.self)
         req.session.destroy()
         return req.redirect(to: "/login")
+    }
+}
+
+infix operator ==> : LogicalConjunctionPrecedence
+infix operator --> : LogicalConjunctionPrecedence
+infix operator -!-> : LogicalConjunctionPrecedence
+
+extension EventLoopFuture {
+    static func --> <NewValue>(left: EventLoopFuture<Value>, right: @escaping (Value) -> EventLoopFuture<NewValue>) -> EventLoopFuture<NewValue> {
+        left.flatMap(right)
+    }
+
+    static func ==> <NewValue>(left: EventLoopFuture<Value>, right: @escaping (Value) -> (NewValue)) -> EventLoopFuture<NewValue> {
+        left.map(right)
+    }
+}
+
+extension EventLoopFuture where Value: Vapor.OptionalType {
+    static func -!-> (left: EventLoopFuture<Value>, right: @escaping () -> Error) -> EventLoopFuture<Value.WrappedType> {
+        left.unwrap(or: right())
     }
 }
