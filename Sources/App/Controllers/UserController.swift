@@ -112,26 +112,14 @@ struct UserController: RouteCollection {
         }
     }
     
-    fileprivate func verifyUser(_ req: Request) throws -> EventLoopFuture<User> {
+    func handleLogin(_ req: Request) throws -> EventLoopFuture<Response> {
         try LoginRequest.validate(req)
         let loginRequest = try req.content.decode(LoginRequest.self)
-        let query = User.query(on: req.db).filter(\.$email == loginRequest.email).first()
-        
-        return query
-            -!-> { AuthenticationError.invalidEmailOrPassword }
-            --> { user -> EventLoopFuture<User> in
-                let verifier = req.password.async.verify(loginRequest.password, created: user.passwordHash)
-                return verifier
-                    .guard({ $0 == true }, else: AuthenticationError.invalidEmailOrPassword)
-                    .transform(to: user)
-        }
-    }
-    
-    func handleLogin(_ req: Request) throws -> EventLoopFuture<Response> {
-        return try verifyUser(req)
-            --> { self.removeTokens(user: $0, req: req) }
-            --> { self.generateToken(user: $0, req: req) }
-            ==> { return req.redirect(to: "/") }
+        return try loginRequest.findUser(request: req)
+            .then { user in loginRequest.verify(request: req, matches: user) }
+            .then { user in self.removeTokens(user: user, req: req) }
+            .then { user in self.generateToken(user: user, req: req) }
+            .thenRedirect(request: req) { "/" }
     }
     
     func handleRegister(_ req: Request) throws -> EventLoopFuture<Response> {
@@ -164,11 +152,33 @@ struct UserController: RouteCollection {
     }
 }
 
+extension LoginRequest {
+    func findUser(request: Request) throws -> EventLoopFuture<User> {
+        let query = User.query(on: request.db).filter(\.$email == email).first()
+        return query.unwrap(or: AuthenticationError.invalidEmailOrPassword)
+    }
+    
+    func verify(request: Request, matches user: User) -> EventLoopFuture<User> {
+        let verifier = request.password.async.verify(password, created: user.passwordHash)
+        return verifier
+            .guard({ $0 == true }, else: AuthenticationError.invalidEmailOrPassword)
+            .transform(to: user)
+    }
+}
+
 infix operator ==> : LogicalConjunctionPrecedence
 infix operator --> : LogicalConjunctionPrecedence
 infix operator -!-> : LogicalConjunctionPrecedence
 
-extension EventLoopFuture {
+public extension EventLoopFuture {
+    func then<NewValue>(file: StaticString = #file, line: UInt = #line, _ callback: @escaping (Value) -> EventLoopFuture<NewValue>) -> EventLoopFuture<NewValue> {
+        flatMap(file: file, line: line, callback)
+    }
+
+    func thenRedirect(request: Request, to: () -> String) -> EventLoopFuture<Response> {
+        map { _ in request.redirect(to: to()) }
+    }
+    
     static func --> <NewValue>(left: EventLoopFuture<Value>, right: @escaping (Value) -> EventLoopFuture<NewValue>) -> EventLoopFuture<NewValue> {
         left.flatMap(right)
     }
