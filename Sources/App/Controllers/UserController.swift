@@ -2,22 +2,9 @@ import Fluent
 import Vapor
 
 struct UserController: RouteCollection {
-    let app: Application
+    let sessionProtected: RoutesBuilder
     
     func boot(routes: RoutesBuilder) throws {
-        
-        let sessionEnabled = routes.grouped(
-            SessionsMiddleware(session: app.sessions.driver)
-        )
-
-        let sessionProtected = routes.grouped(
-            SessionsMiddleware(session: app.sessions.driver),
-            UserToken.sessionAuthenticator()
-            //            UserToken.guardMiddleware()
-        )
-
-        routes.get("login", use: renderLogin)
-        sessionEnabled.post("login", use: handleLogin)
         
         routes.get("register", use: renderRegister)
         routes.post("register", use: handleRegister)
@@ -87,40 +74,6 @@ struct UserController: RouteCollection {
         }
     }
     
-    func renderLogin(_ req: Request) throws -> EventLoopFuture<View> {
-        return req.view.render("login")
-    }
-    
-    fileprivate func removeTokens(user: User, req: Request) -> EventLoopFuture<User> {
-        do {
-            return try UserToken.query(on: req.db)
-                .filter(\.$user.$id == user.requireID())
-                .delete()
-                .transform(to: user)
-        } catch {
-            return req.eventLoop.makeFailedFuture(error)
-        }
-    }
-    
-    fileprivate func generateToken(user: User, req: Request) -> EventLoopFuture<Void> {
-        do {
-            let token = try user.generateToken()
-            return token.create(on: req.db)
-                .map { req.session.authenticate(token) }
-        } catch {
-            return req.eventLoop.makeFailedFuture(error)
-        }
-    }
-    
-    func handleLogin(_ req: Request) throws -> EventLoopFuture<Response> {
-        try LoginRequest.validate(req)
-        let loginRequest = try req.content.decode(LoginRequest.self)
-        return try loginRequest.findUser(request: req)
-            .then { user in loginRequest.verify(request: req, matches: user) }
-            .then { user in self.removeTokens(user: user, req: req) }
-            .then { user in self.generateToken(user: user, req: req) }
-            .thenRedirect(request: req) { "/" }
-    }
     
     func handleRegister(_ req: Request) throws -> EventLoopFuture<Response> {
         print("perform register")
@@ -152,20 +105,6 @@ struct UserController: RouteCollection {
     }
 }
 
-extension LoginRequest {
-    func findUser(request: Request) throws -> EventLoopFuture<User> {
-        let query = User.query(on: request.db).filter(\.$email == email).first()
-        return query.unwrap(or: AuthenticationError.invalidEmailOrPassword)
-    }
-    
-    func verify(request: Request, matches user: User) -> EventLoopFuture<User> {
-        let verifier = request.password.async.verify(password, created: user.passwordHash)
-        return verifier
-            .guard({ $0 == true }, else: AuthenticationError.invalidEmailOrPassword)
-            .transform(to: user)
-    }
-}
-
 infix operator ==> : LogicalConjunctionPrecedence
 infix operator --> : LogicalConjunctionPrecedence
 infix operator -!-> : LogicalConjunctionPrecedence
@@ -175,8 +114,8 @@ public extension EventLoopFuture {
         flatMap(file: file, line: line, callback)
     }
 
-    func thenRedirect(request: Request, to: () -> String) -> EventLoopFuture<Response> {
-        map { _ in request.redirect(to: to()) }
+    func thenRedirect(with request: Request, to: String) -> EventLoopFuture<Response> {
+        map { _ in request.redirect(to: to) }
     }
     
     static func --> <NewValue>(left: EventLoopFuture<Value>, right: @escaping (Value) -> EventLoopFuture<NewValue>) -> EventLoopFuture<NewValue> {
