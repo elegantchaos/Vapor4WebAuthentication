@@ -7,6 +7,12 @@
               <div class="card-body">
                 <h3 class="card-title">Register</h3>
                 <form action="/register" method="POST">
+                  #if(meta.error):
+                  <div class="form-group">
+                  <em>#(meta.error)</em>
+                  </div>
+                  #endif
+
                   <div class="form-group">
                     <label for="email">Name</label>
                     <input type="name" name="name" class="form-control" id="name" />

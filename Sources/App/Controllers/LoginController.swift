@@ -10,11 +10,6 @@ struct LoginRequest: Content {
     let email: String
     let password: String
     
-    static func decode(from req: Request) throws -> LoginRequest {
-        try LoginRequest.validate(req)
-        return try req.content.decode(LoginRequest.self)
-    }
-    
     func findUser(with request: Request) throws -> EventLoopFuture<User> {
         let query = User.query(on: request.db).filter(\.$email == email).first()
         return query.unwrap(or: AuthenticationError.invalidEmailOrPassword)
@@ -29,6 +24,11 @@ struct LoginRequest: Content {
 }
 
 extension LoginRequest: Validatable {
+    static func decode(from req: Request) throws -> LoginRequest {
+        try LoginRequest.validate(req)
+        return try req.content.decode(LoginRequest.self)
+    }
+    
     static func validations(_ validations: inout Validations) {
         validations.add("email", as: String.self, is: .email)
     }
@@ -43,17 +43,27 @@ struct LoginController: RouteCollection {
         sessionEnabled.post("login", use: handleLogin)
     }
     
-    func renderLogin(_ req: Request) throws -> EventLoopFuture<View> {
-        return req.view.render("login")
+    func renderLogin(_ req: Request) throws -> EventLoopFuture<Response> {
+        let page = LoginPage()
+        return page.render(with: req)
     }
     
     func handleLogin(_ req: Request) throws -> EventLoopFuture<Response> {
         let login = try LoginRequest.decode(from: req)
-        return try login.findUser(with: req)
-            .thenVerifyLogin(login, with: req)
-            .thenRemoveTokens(with: req)
-            .thenGenerateToken(with: req)
-            .thenRedirect(with: req, to: "/")
+        do {
+            return try login.findUser(with: req)
+                .thenVerifyLogin(login, with: req)
+                .thenRemoveTokens(with: req)
+                .thenGenerateToken(with: req)
+                .thenRedirect(with: req, to: "/")
+                .flatMapError { error in
+                    let page = LoginPage(request: login, error: error)
+                    return page.render(with: req)
+                }
+        } catch {
+            let page = Page("login", meta: .init("Login", description: "Login Page", error: String(describing: error)))
+            return page.render(with: req)
+        }
     }
 }
 
