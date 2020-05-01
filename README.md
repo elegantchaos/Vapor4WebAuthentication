@@ -1,4 +1,4 @@
-# Vapor4WebAuthentication
+# Vapor4 Session-Based Authentication for Websites
 
 When I set out to play with Vapor, what I was looking for was a nice example of how to do authentication, for a website and not an API, using Vapor 4.0.
 

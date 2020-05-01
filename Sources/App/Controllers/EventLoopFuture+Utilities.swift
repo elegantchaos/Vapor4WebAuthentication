@@ -5,9 +5,6 @@
 
 import Vapor
 
-infix operator ==> : LogicalConjunctionPrecedence
-infix operator --> : LogicalConjunctionPrecedence
-infix operator -!-> : LogicalConjunctionPrecedence
 
 public extension EventLoopFuture {
     func then<NewValue>(file: StaticString = #file, line: UInt = #line, _ callback: @escaping (Value) -> EventLoopFuture<NewValue>) -> EventLoopFuture<NewValue> {
@@ -17,7 +14,26 @@ public extension EventLoopFuture {
     func thenRedirect(with request: Request, to: String) -> EventLoopFuture<Response> {
         map { _ in request.redirect(to: to) }
     }
-    
+
+    func translatingError<ErrorType>(to error: Error, if condition: @escaping (ErrorType) -> Bool) -> EventLoopFuture<Value> {
+        flatMapErrorThrowing {
+            if let dbError = $0 as? ErrorType, condition(dbError) {
+                throw error
+            }
+            throw $0
+        }
+    }
+}
+
+
+
+// Ok, I was experimenting with operators, I admit it. Move along please. Nothing to see here...
+
+infix operator ==> : LogicalConjunctionPrecedence
+infix operator --> : LogicalConjunctionPrecedence
+infix operator -!-> : LogicalConjunctionPrecedence
+
+public extension EventLoopFuture {
     static func --> <NewValue>(left: EventLoopFuture<Value>, right: @escaping (Value) -> EventLoopFuture<NewValue>) -> EventLoopFuture<NewValue> {
         left.flatMap(right)
     }
@@ -30,16 +46,5 @@ public extension EventLoopFuture {
 extension EventLoopFuture where Value: Vapor.OptionalType {
     static func -!-> (left: EventLoopFuture<Value>, right: @escaping () -> Error) -> EventLoopFuture<Value.WrappedType> {
         left.unwrap(or: right())
-    }
-}
-
-extension EventLoopFuture {
-    func translatingError<ErrorType>(to error: Error, if condition: @escaping (ErrorType) -> Bool) -> EventLoopFuture<Value> {
-        flatMapErrorThrowing {
-            if let dbError = $0 as? ErrorType, condition(dbError) {
-                throw error
-            }
-            throw $0
-        }
     }
 }
