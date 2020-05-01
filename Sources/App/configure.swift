@@ -22,6 +22,9 @@ public func configure(_ app: Application) throws {
     // register routes
     try routes(app)
     
+    app.users.use { req in DatabaseUserRepository(database: req.db) }
+    app.tokens.use { req in DatabaseTokenRepository(database: req.db) }
+
     if app.environment == .development {
         try app.autoMigrate().wait()
     }

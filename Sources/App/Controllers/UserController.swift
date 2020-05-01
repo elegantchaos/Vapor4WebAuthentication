@@ -20,9 +20,9 @@ struct UserController: RouteCollection {
     }
     
     func renderProfilePage(_ req: Request, for user: User? = nil) -> EventLoopFuture<Response> {
-        return UserToken.query(on: req.db).all()
+        return req.tokens.all()
             .and(SessionRecord.query(on: req.db).all())
-            .and(User.query(on: req.db).all())
+            .and(req.users.all())
             .flatMap { (tokensAndSessions, users) in
                 let (tokens, sessions) = tokensAndSessions
                 let page = ProfilePage(user: user, users: users, tokens: tokens, sessions: sessions)
