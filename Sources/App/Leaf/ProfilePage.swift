@@ -10,10 +10,10 @@ struct ProfilePage: LeafPage {
     var file: String
     var meta: PageMetadata
     let users: [User]
-    let tokens: [UserToken]
+    let tokens: [Token]
     let sessions: [SessionRecord]
     
-    init(user: User?, users: [User], tokens: [UserToken], sessions: [SessionRecord]) {
+    init(user: User?, users: [User], tokens: [Token], sessions: [SessionRecord]) {
         let title: String
         let description: String
         if let user = user {

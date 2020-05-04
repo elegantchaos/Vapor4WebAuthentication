@@ -5,16 +5,17 @@
             <div class="card">
               <div class="card-body">
                 <h3 class="card-title">#(meta.title)</h3>
-                <h4>Tokens</h4>
-                #for(token in tokens):
-                   <li>#(token.id)</li>
-                #endfor
-
-                <br />
 
                 <h4>Users</h4>
                 #for(user in users):
                    <li>#(user.name) #(user.email)</li>
+                #endfor
+
+                <br />
+
+                <h4>Tokens</h4>
+                #for(token in tokens):
+                   <li>#(token.id)</li>
                 #endfor
 
                 <br />

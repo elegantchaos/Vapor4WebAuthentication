@@ -75,8 +75,7 @@ fileprivate extension EventLoopFuture where Value: User {
     func thenRemoveTokens(with req: Request) -> EventLoopFuture<User> {
         flatMap { user in
             do {
-                return try UserToken.query(on: req.db)
-                    .filter(\.$user.$id == user.requireID())
+                return try req.tokens.forUser(user)
                     .delete()
                     .transform(to: user)
             } catch {

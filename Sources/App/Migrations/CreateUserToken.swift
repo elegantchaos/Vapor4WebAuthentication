@@ -5,7 +5,7 @@
 
 import Fluent
 
-extension UserToken {
+extension Token {
     struct Migration: Fluent.Migration {
         var name: String { "CreateUserToken" }
 

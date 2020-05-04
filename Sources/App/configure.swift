@@ -10,7 +10,7 @@ public func configure(_ app: Application) throws {
     app.sessions.use(.fluent(.sqlite))
     
     app.migrations.add(User.Migration())
-    app.migrations.add(UserToken.Migration())
+    app.migrations.add(Token.Migration())
     app.migrations.add(SessionRecord.migration)
     
     app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))     // serve files from /Public folder

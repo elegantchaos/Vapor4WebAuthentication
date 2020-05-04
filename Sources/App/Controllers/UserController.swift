@@ -10,7 +10,7 @@ struct UserController: RouteCollection {
     }
 
     func renderProfile(_ req: Request) throws -> EventLoopFuture<Response> {
-        let token = req.auth.get(UserToken.self)
+        let token = req.auth.get(Token.self)
         if let token = token {
             return token.$user.get(on: req.db)
                 .flatMap { user in self.renderProfilePage(req, for: user) }

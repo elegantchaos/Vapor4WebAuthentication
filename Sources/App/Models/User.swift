@@ -31,7 +31,7 @@ final class User: Model, Content {
 }
 
 extension User {
-    func generateToken() throws -> UserToken {
+    func generateToken() throws -> Token {
         try .init(
             value: [UInt8].random(count: 16).base64,
             userID: self.requireID()

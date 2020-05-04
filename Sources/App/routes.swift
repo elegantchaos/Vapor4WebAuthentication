@@ -8,7 +8,7 @@ func routes(_ app: Application) throws {
 
      let sessionProtected = app.grouped(
          SessionsMiddleware(session: app.sessions.driver),
-         UserToken.sessionAuthenticator()
+         Token.sessionAuthenticator()
          //            UserToken.guardMiddleware()
      )
     

@@ -7,18 +7,18 @@ import Vapor
 import Fluent
 
 protocol TokenRepository {
-    func all() -> EventLoopFuture<[UserToken]>
-    func forUser(_ user: User) throws -> QueryBuilder<UserToken>
+    func all() -> EventLoopFuture<[Token]>
+    func forUser(_ user: User) throws -> QueryBuilder<Token>
 }
 
 struct DatabaseTokenRepository: TokenRepository {
     let database: Database
-    func all() -> EventLoopFuture<[UserToken]> {
-        return UserToken.query(on: database).all()
+    func all() -> EventLoopFuture<[Token]> {
+        return Token.query(on: database).all()
     }
     
-    func forUser(_ user: User) throws -> QueryBuilder<UserToken> {
-        try UserToken.query(on: database).filter(\.$user.$id == user.requireID())
+    func forUser(_ user: User) throws -> QueryBuilder<Token> {
+        try Token.query(on: database).filter(\.$user.$id == user.requireID())
     }
 }
 

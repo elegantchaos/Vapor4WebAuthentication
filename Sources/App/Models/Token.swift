@@ -6,7 +6,7 @@
 import Fluent
 import Vapor
 
-final class UserToken: Model, Content {
+final class Token: Model, Content {
     static let schema = "user_tokens"
 
     @ID(key: .id)
@@ -27,5 +27,5 @@ final class UserToken: Model, Content {
     }
 }
 
-extension UserToken: ModelSessionAuthenticatable {
+extension Token: ModelSessionAuthenticatable {
 }
