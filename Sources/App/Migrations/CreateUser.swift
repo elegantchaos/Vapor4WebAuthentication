@@ -13,10 +13,10 @@ extension User {
         func prepare(on database: Database) -> EventLoopFuture<Void> {
             database.schema(User.schema)
                 .id()
-                .field("name", .string, .required)
-                .field("email", .string, .required)
-                .field("password_hash", .string, .required)
-                .unique(on: "email")
+                .field(.name, .string, .required)
+                .field(.email, .string, .required)
+                .field(.passwordHash, .string, .required)
+                .unique(on: .user)
                 .create()
         }
 

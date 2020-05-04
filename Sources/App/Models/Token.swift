@@ -6,16 +6,21 @@
 import Fluent
 import Vapor
 
+extension FieldKey {
+    static var value: FieldKey { return "value" }
+    static var user: FieldKey { return "user_id" }
+}
+
 final class Token: Model, Content {
-    static let schema = "user_tokens"
+    static let schema = "tokens"
 
     @ID(key: .id)
     var id: UUID?
 
-    @Field(key: "value")
+    @Field(key: .value)
     var value: String
 
-    @Parent(key: "user_id")
+    @Parent(key: .user)
     var user: User
 
     init() { }

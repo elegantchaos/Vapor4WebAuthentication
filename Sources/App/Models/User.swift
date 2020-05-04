@@ -5,19 +5,25 @@
 import Vapor
 import Fluent
 
+extension FieldKey {
+    static var name: FieldKey { return "name" }
+    static var email: FieldKey { return "email" }
+    static var passwordHash: FieldKey { return "password_hash" }
+}
+
 final class User: Model, Content {
     static let schema = "users"
 
     @ID(key: .id)
     var id: UUID?
 
-    @Field(key: "name")
+    @Field(key: .name)
     var name: String
 
-    @Field(key: "email")
+    @Field(key: .email)
     var email: String
 
-    @Field(key: "password_hash")
+    @Field(key: .passwordHash)
     var passwordHash: String
 
     init() { }
