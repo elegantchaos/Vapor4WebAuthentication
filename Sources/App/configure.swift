@@ -1,13 +1,15 @@
 import Fluent
-import FluentSQLiteDriver
+import FluentPostgresDriver
+//import FluentSQLiteDriver
 import Vapor
 import Leaf
 
 // configures your application
 public func configure(_ app: Application) throws {
 
-    app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
-    app.sessions.use(.fluent(.sqlite))
+    app.databases.use(.postgres(hostname: "localhost", username: "vapor", password: "vapor", database: "cases"), as: .psql)
+//    app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
+//    app.sessions.use(.fluent(.sqlite))
     
     app.migrations.add(User.Migration())
     app.migrations.add(Token.Migration())
