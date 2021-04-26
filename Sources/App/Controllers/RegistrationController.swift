@@ -19,7 +19,7 @@ struct RegistrationRequest: Content {
 
 extension RegistrationRequest: Validatable {
     static func decode(from req: Request) throws -> RegistrationRequest {
-        try RegistrationRequest.validate(req)
+        try RegistrationRequest.validate(content: req)
         let request = try req.content.decode(RegistrationRequest.self)
         guard request.password == request.confirm else {
             throw AuthenticationError.passwordsDontMatch

@@ -25,7 +25,7 @@ struct LoginRequest: Content {
 
 extension LoginRequest: Validatable {
     static func decode(from req: Request) throws -> LoginRequest {
-        try LoginRequest.validate(req)
+        try LoginRequest.validate(content: req)
         return try req.content.decode(LoginRequest.self)
     }
     
