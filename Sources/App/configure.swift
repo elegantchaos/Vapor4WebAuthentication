@@ -15,6 +15,7 @@ public func configure(_ app: Application) throws {
     } else {
         app.databases.use(.postgres(hostname: "localhost", username: "vapor", password: "vapor", database: "cases"), as: .psql)
     }
+    app.sessions.use(.fluent)
     
     app.migrations.add(User.Migration())
     app.migrations.add(Token.Migration())
