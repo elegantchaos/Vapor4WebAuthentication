@@ -7,9 +7,14 @@ import Leaf
 // configures your application
 public func configure(_ app: Application) throws {
 
-    app.databases.use(.postgres(hostname: "localhost", username: "vapor", password: "vapor", database: "cases"), as: .psql)
-//    app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
-//    app.sessions.use(.fluent(.sqlite))
+    if let databaseURL = Environment.get("DATABASE_URL"), var postgresConfig = PostgresConfiguration(url: databaseURL) {
+        postgresConfig.tlsConfiguration = .forClient(certificateVerification: .none)
+        app.databases.use(.postgres(
+            configuration: postgresConfig
+        ), as: .psql)
+    } else {
+        app.databases.use(.postgres(hostname: "localhost", username: "vapor", password: "vapor", database: "cases"), as: .psql)
+    }
     
     app.migrations.add(User.Migration())
     app.migrations.add(Token.Migration())
